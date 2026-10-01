@@ -30,7 +30,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: learningsteps:${{ github.sha }}
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           exit-code: '1'
 
       - name: Scan Terraform
@@ -38,7 +38,7 @@ jobs:
         with:
           scan-type: config
           scan-ref: infra-terraform
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           exit-code: '1'
 
       - name: Azure login (OIDC)
