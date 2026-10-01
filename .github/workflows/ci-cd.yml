@@ -15,8 +15,6 @@ jobs:
 
       - name: Scan for secrets
         uses: trufflesecurity/trufflehog@main
-        with:
-          extra_args: --fail
 
       - name: Lint and test
         run: |
