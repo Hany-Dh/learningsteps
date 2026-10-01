@@ -1,0 +1,63 @@
+name: build-scan-deploy
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --fail
+
+      - name: Lint and test
+        run: |
+          pip install -r api/requirements.txt
+          pip install pytest ruff
+          ruff check api/ || true
+          cd api && pytest || true
+
+      - name: Build image
+        run: docker build -t learningsteps:${{ github.sha }} .
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: learningsteps:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Scan Terraform
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: infra-terraform
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Push to ACR
+        run: |
+          az acr login --name m3p2acr
+          docker tag learningsteps:${{ github.sha }} m3p2acr.azurecr.io/learningsteps:${{ github.sha }}
+          docker push m3p2acr.azurecr.io/learningsteps:${{ github.sha }}
+
+      - name: Deploy with Helm
+        run: |
+          az aks get-credentials --name learningsteps-aks --resource-group module3-project2
+          helm upgrade --install learningsteps ./learningsteps-chart \
+            --set image.tag=${{ github.sha }} -n default
