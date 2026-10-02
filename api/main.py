@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 from routers.journal_router import router as journal_router
+from prometheus_fastapi_instrumentator import Instrumentator
 import logging
 
 load_dotenv()
@@ -17,6 +18,7 @@ load_dotenv()
 app = FastAPI(title="LearningSteps API", description="A simple learning journal API for tracking daily work, struggles, and intentions")
 app.include_router(journal_router)
 
+Instrumentator().instrument(app).expose(app)
 
 @app.get("/", include_in_schema=False)
 def root():
