@@ -1,0 +1,6 @@
+apiVersion: v2
+name: learningsteps
+description: Helm chart for the LearningSteps API on AKS
+type: application
+version: 0.1.0
+appVersion: "1.0"

@@ -1,0 +1,38 @@
+replicaCount: 1
+
+image:
+  repository: m3p2acr.azurecr.io/learningsteps
+  tag: v1
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+probes:
+  path: /
+  readinessInitialDelaySeconds: 5
+  livenessInitialDelaySeconds: 15
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+keyVault:
+  name: learningsteps-kv-m3p2acr
+  tenantId: "c0531484-50fa-4ff2-97df-b1f2d4810603"
+  secretName: database-url
+  secretProviderClassName: learningsteps-secrets
+  k8sSecretName: learningsteps-db-secret
+  userAssignedIdentityID: "2c0bdb35-7155-4e54-840c-948efeada9a3"
