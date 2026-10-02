@@ -4,4 +4,6 @@ python-dotenv
 aiohttp
 sqlalchemy
 psycopg2-binary
-asyncpgrequests==2.6.0
+asyncpg
+requests==2.6.0
+requests==2.6.0
