@@ -8,13 +8,19 @@ from models.entry import Entry, EntryCreate
 
 router = APIRouter()
 
+# TODO: Add authentication middleware
+# TODO: Add request validation middleware
+# TODO: Add rate limiting middleware
+# TODO: Add API versioning
+# TODO: Add response caching
+
 async def get_entry_service() -> AsyncGenerator[EntryService, None]:
     async with PostgresDB() as db:
         yield EntryService(db)
 
 
 def parse_text_entry(raw: str) -> dict:
-    """Parses 'key: value' lines into a dict."""
+    """Parses 'key: value' lines (one per line) into a dict."""
     data = {}
     for line in raw.strip().splitlines():
         if ":" not in line:
@@ -26,9 +32,9 @@ def parse_text_entry(raw: str) -> dict:
 
 @router.post("/entries")
 async def create_entry(request: Request, entry_service: EntryService = Depends(get_entry_service)):
-    """Create a new journal entry. Accepts application/json or text/plain."""
-    content_type = request.headers.get("content-type", "")
+    """Create a new journal entry. Accepts application/json or text/plain (key: value per line)."""
     try:
+        content_type = request.headers.get("content-type", "")
         if "text/plain" in content_type:
             raw = (await request.body()).decode()
             parsed = parse_text_entry(raw)
@@ -37,23 +43,31 @@ async def create_entry(request: Request, entry_service: EntryService = Depends(g
             body = await request.json()
             entry_data = EntryCreate(**body)
 
+        # Create the full entry with auto-generated fields
         entry = Entry(
             work=entry_data.work,
             struggle=entry_data.struggle,
             intention=entry_data.intention
         )
+
+        # Store the entry in the database
         created_entry = await entry_service.create_entry(entry.model_dump())
-        return {"detail": "Entry created successfully", "entry": created_entry}
+
+        # Return success response (FastAPI handles datetime serialization automatically)
+        return {
+            "detail": "Entry created successfully",
+            "entry": created_entry
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error creating entry: {str(e)}")
 
-
+# Implements GET /entries endpoint to list all journal entries
+# Example response: [{"id": "123", "work": "...", "struggle": "...", "intention": "..."}]
 @router.get("/entries")
 async def get_all_entries(entry_service: EntryService = Depends(get_entry_service)):
     """Get all journal entries."""
     result = await entry_service.get_all_entries()
     return {"entries": result, "count": len(result)}
-
 
 @router.get("/entries/{entry_id}")
 async def get_entry(entry_id: str, entry_service: EntryService = Depends(get_entry_service)):
@@ -63,10 +77,9 @@ async def get_entry(entry_id: str, entry_service: EntryService = Depends(get_ent
         raise HTTPException(status_code=404, detail="Entry not found")
     return entry
 
-
 @router.patch("/entries/{entry_id}")
 async def update_entry(request: Request, entry_id: str, entry_service: EntryService = Depends(get_entry_service)):
-    """Update a journal entry. Accepts application/json or text/plain."""
+    """Update a journal entry. Accepts application/json or text/plain (key: value per line)."""
     content_type = request.headers.get("content-type", "")
     if "text/plain" in content_type:
         raw = (await request.body()).decode()
@@ -76,9 +89,10 @@ async def update_entry(request: Request, entry_id: str, entry_service: EntryServ
 
     result = await entry_service.update_entry(entry_id, entry_update)
     if not result:
-        raise HTTPException(status_code=404, detail="Entry not found")
-    return result
 
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    return result
 
 @router.delete("/entries/{entry_id}")
 async def delete_entry(entry_id: str, entry_service: EntryService = Depends(get_entry_service)):
@@ -88,7 +102,6 @@ async def delete_entry(entry_id: str, entry_service: EntryService = Depends(get_
         raise HTTPException(status_code=404, detail="Entry not found")
     await entry_service.delete_entry(entry_id)
     return {"detail": "Entry deleted successfully"}
-
 
 @router.delete("/entries")
 async def delete_all_entries(entry_service: EntryService = Depends(get_entry_service)):
