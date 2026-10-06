@@ -207,6 +207,6 @@ You can now explore the database structure, see exactly how your data is stored,
 
 ##################################
 
-Updates will follow...
+🚀 Updates will follow ... ...
 
 ###############
