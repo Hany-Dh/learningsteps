@@ -1,212 +1,119 @@
-# LearningSteps API
+# LearningSteps Evolution
 
-Welcome to LearningSteps! LearningSteps is a Python FastAPI + PostgreSQL application that helps people track their daily learning journey. In this project, you will build, extend, and finally deploy LearningSteps to the cloud!
+**From manual Azure deployment to automated DevSecOps.**
 
+A FastAPI + PostgreSQL journal API, evolved from a hand-provisioned 2-tier Azure
+setup into a fully automated, security-gated, self-healing deployment on Azure
+Kubernetes Service — provisioned by Terraform, delivered by GitHub Actions, and
+secured end to end.
 
-## Table of Contents
+[![CI/CD Pipeline](https://github.com/Hany-Dh/learningsteps/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Hany-Dh/learningsteps/actions)
 
-- [🚀 Getting Started](#-getting-started)
-- [🎯 Development Tasks (Your Work!)](#-development-tasks-your-work)
-  - [1. API Implementation (Required)](#1-api-implementation-required)
-  - [2. Logging Setup (Required)](#2-logging-setup-required)
-  - [3. Data Model Improvements (Optional)](#3-data-model-improvements-optional)
-  - [4. Cloud CLI Setup (Required for Deployment)](#4-cloud-cli-setup-required-for-deployment)
-- [📊 Data Schema](#-data-schema)
-- [�️ Explore Your Database (Optional)](#️-explore-your-database-optional)
-- [🔧 Troubleshooting](#-troubleshooting)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+> This repo is a fork of [CyberstepsDE/learningsteps](https://github.com/CyberstepsDE/learningsteps), evolved for Module 3 — Project 2.
 
-## 🚀 Getting Started
+---
 
-### Prerequisites
+## Architecture
 
-- Git installed on your machine
-- Docker Desktop installed and running
-- VS Code with the Dev Containers extension
+![Architecture](project_report/CI-CD_AKS_POSTGRESQL_Module.3_Project.2.png)
 
-### 1. Fork and Clone the Repository
+Terraform provisions all infrastructure. GitHub Actions builds, scans, and
+deploys the application via Helm on every push to `main`, authenticated to
+Azure through passwordless OIDC — no stored cloud credentials.
 
-1. **Fork this repository** to your GitHub account by clicking the "Fork" button
-1. **Clone your fork** to your local machine:
+| Layer | Technology |
+|---|---|
+| Application | Python, FastAPI, PostgreSQL |
+| Containerization | Docker (multi-stage build) |
+| Infrastructure as Code | Terraform (AzureRM provider) |
+| Orchestration | Azure Kubernetes Service (AKS) + Helm |
+| Secrets | Azure Key Vault + CSI Secrets Store driver |
+| CI/CD | GitHub Actions (OIDC, no stored secrets) |
+| Security scanning | Trivy (image + IaC), trufflehog (secrets) |
+| Monitoring (optional) | Prometheus + Grafana |
 
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/learningsteps.git
-   ```
+Full design rationale, every issue hit, and all verification evidence is in
+the [project report](docs/LearningSteps_Evolution_Report.pdf).
 
-1. Move into the project directory:
+---
 
-   ```bash
-   cd learningsteps
-   ```
+## Project Status
 
-1. **Open in VS Code**:
+| Phase | Description | Status |
+|---|---|---|
+| 0 | Plan & architecture | ✅ Done |
+| 1 | Tooling setup | ✅ Done |
+| 2 | App working locally | ✅ Done |
+| 3 | Dockerize + push to ACR | ✅ Done |
+| 4 | Terraform infrastructure | ✅ Done |
+| 5 | Key Vault secrets | ✅ Done |
+| 6 | Helm deployment | ✅ Done |
+| 7 | CI/CD (OIDC + security gates) | ✅ Done |
+| 8 | Monitoring (optional) | ⏸️ Paused — infra proven, dashboard UI incomplete |
+| 9 | Final demo | 📋 Planned — see report §10 |
 
-   ```bash
-   code .
-   ```
+---
 
-### 2. Configure Your Environment (.env)
+## API
 
-Environment variables live in a `.env` file (which is **git-ignored** so you don't accidentally commit secrets). This repo ships with a template named `.env-sample`.
+Six CRUD endpoints under `/entries`, accepting either `application/json` or
+`text/plain`. Interactive docs at `/docs` once deployed.
 
-1. Copy the sample file to create your real `.env`:
+```bash
+curl -X POST http://<public-ip>/entries \
+  -H "Content-Type: application/json" \
+  -d '{"work":"Learned Kubernetes","struggle":"Networking","intention":"Practice more"}'
+```
 
-   ```bash
-   cp .env-sample .env
-   ```
+---
 
-### 3. Set Up Your Development Environment
+## Local Development
 
-1. **Install the Dev Containers extension** in VS Code (if not already installed)
-2. **Reopen in container**: When VS Code detects the `.devcontainer` folder, click "Reopen in Container"
-   - Or use Command Palette (`Cmd/Ctrl + Shift + P`): `Dev Containers: Reopen in Container`
-3. **Wait for setup**: The API container will automatically install Python, dependencies, and configure your environment.
-   The PostgreSQL Database container will also automatically be created.
+```bash
+git clone https://github.com/Hany-Dh/learningsteps.git
+cd learningsteps
+python3 -m venv venv && source venv/bin/activate
+pip install -r api/requirements.txt
+cp .env-sample .env   # point DATABASE_URL at a local Postgres
+cd api && uvicorn main:app --reload
+```
 
-### 4. Verify the PostgreSQL Database Is Running
+Or with Docker:
 
-In a terminal outside of VS Code, run:
+```bash
+docker compose up --build
+```
 
-   ```bash
-      docker ps
-   ```
+---
 
-You should see the postgres service running.
+## Cloud Deployment (summary)
 
-### 5. Run the API
+1. **Install tooling** — `./install-tools-kali.sh` (Docker, Azure CLI, Terraform, kubectl, Helm, Trivy, trufflehog)
+2. **Provision infrastructure** — `cd infra-terraform && terraform init && terraform apply`
+3. **Store secrets** — DB connection string into Azure Key Vault, delivered via CSI driver
+4. **Deploy** — `helm upgrade --install learningsteps ./learningsteps-chart`
+5. **CI/CD** — every push to `main` builds, scans, and redeploys automatically
 
-Make sure you are in the root of your project in the terminal (inside VS Code, while container is running):
+Full step-by-step commands: [`docs/LearningSteps_Evolution_Report.pdf`](docs/LearningSteps_Evolution_Report.pdf), Sections 5–7.
 
-   ```bash
-     ./start.sh
-   ```
+---
 
-### 6. Test Everything Works! 🎉
+## Security
 
-1. **Visit the API docs**: http://localhost:8000/docs
-1. **Create your first entry** In the Docs UI Use the POST `/entries` endpoint to create a new journal entry.
-1. **View your entries** using the GET `/entries` endpoint to see what you've created!
+- No secret is ever committed to source control.
+- Azure authentication uses OIDC federation — no stored cloud credential in GitHub.
+- Every image is scanned (Trivy) and every commit is scanned for leaked secrets (trufflehog) before deploy.
+- Key Vault network access defaults to deny.
 
-**🎯 Once you can create and see entries, you're ready to start implementing the missing endpoints!**
+---
 
-## Your Learning Goals
+## Documentation
 
-Complete a learning journal API that allows users to:
+- 📄 [Full project report (PDF)](docs/LearningSteps_Evolution_Report.pdf) — architecture, every phase, full troubleshooting log, security posture, final demo plan
+- 📘 [Build guide](../learningsteps-devops-guide.md)
 
-- ✅ **Store journal entries** (already implemented)
-- ✅ **Retrieve all journal entries** (already implemented)
-- ❌ **Retrieve single journal entry** (you need to implement)  
-- ❌ **Delete specific journal entries** (you need to implement)
-- ✅ **Update journal entries** (already implemented)
-- ✅ **Delete all entries** (already implemented)
-- ❌ **Setup logging** (you need to implement)
+---
 
-## 🎯 Development Tasks (Your Work!)
+## License
 
-You'll use **feature branches** and **Pull Requests (PRs)** for each task. Complete these tasks in your forked repository using feature branches.
-
-### 1. API Implementation (Required)
-
-#### Task 1a: GET Single Entry Endpoint
-
-- Branch: `feature/get-single-entry`
-- [ ] Implement **GET /entries/{entry_id}** in `api/routers/journal_router.py`
-
-#### Task 1b: DELETE Single Entry Endpoint
-
-- Branch: `feature/delete-entry`
-- [ ] Implement **DELETE /entries/{entry_id}** in `api/routers/journal_router.py`
-
-### 2. Logging Setup (Required)
-
-- Branch: `feature/logging-setup`
-- [ ] Configure logging in `api/main.py`
-
-### 3. Data Model Improvements (Optional)
-
-- Branch: `feature/data-model-improvements`  
-- [ ] Add validators to `api/models/entry.py`
-
-### 4. Cloud CLI Setup (Required for Deployment)
-
-- Branch: `feature/cloud-cli-setup`
-- [ ] Uncomment one CLI tool in `.devcontainer/devcontainer.json`
-
-## 📊 Data Schema
-
-Each journal entry follows this structure:
-
-| Field       | Type      | Description                                | Validation                   |
-|-------------|-----------|--------------------------------------------|------------------------------|
-| id          | string    | Unique identifier (UUID)                   | Auto-generated               |
-| work        | string    | What did you work on today?                | Required, max 256 characters |
-| struggle    | string    | What's one thing you struggled with today? | Required, max 256 characters |
-| intention   | string    | What will you study/work on tomorrow?      | Required, max 256 characters |
-| created_at  | datetime  | When entry was created                     | Auto-generated UTC           |
-| updated_at  | datetime  | When entry was last updated                | Auto-updated UTC             |
-
-## 🗄️ Explore Your Database (Optional)
-
-Want to see your data directly in the database? You can connect to PostgreSQL using VS Code's PostgreSQL extension:
-
-### 1. Install PostgreSQL Extension
-
-1. **Install the PostgreSQL extension** in VS Code (search for "PostgreSQL" by Chris Kolkman)
-2. **Restart VS Code** after installation
-
-### 2. Connect to Your Database
-
-1. **Open the PostgreSQL extension** (click the PostgreSQL icon in the sidebar)
-2. **Click "Add Connection"** or the "+" button
-3. **Enter these connection details**:
-   - **Host name**: `postgres`
-   - **User name**: `postgres`
-   - **Password**: `postgres`
-   - **Port**: `5432`
-   - **Conection Type**: `Standard/No SSL`
-   - **Database**: `learning_journal`
-   - **Display name**: `Learning Journal DB` (or any name you prefer)
-
-### 3. Explore Your Data
-
-1. **Expand your connection** in the PostgreSQL panel
-2. **Left-click on "Learning Journal DB" to expand**
-3. **Right-click on "learning_journal"**
-4. **Select "New Query"**
-5. **Type this query** to see all your entries:
-
-   ```sql
-   SELECT * FROM entries;
-   ```
-
-6. **Run the query** to see all your journal data! (Ctrl/Cmd + Enter OR use the PostgreSQL command pallete: Run Query)
-
-You can now explore the database structure, see exactly how your data is stored, and run custom queries to understand PostgreSQL better.
-
-## 🔧 Troubleshooting
-
-**If the API won't start:**
-
-- Make sure the PostgreSQL container is running: `docker ps`
-- Check the container logs: `docker logs your-postgres-container-name`
-- Restart the database: `docker restart your-postgres-container-name`
-
-**If you can't connect to the database:**
-
-- Verify the `.env` file exists and has the correct DATABASE_URL
-- Make sure Docker Desktop is running
-- Try restarting the dev container: `Dev Containers: Rebuild Container`
-
-**If the dev container won't open:**
-
-- Ensure Docker Desktop is running
-- Install the "Dev Containers" extension in VS Code
-- Try: `Dev Containers: Rebuild and Reopen in Container`
-
-
-##################################
-
-🚀 Updates will follow ... ...
-
-###############
+Educational project — Module 3, Project 2, Cybersecurity Fundamentals course.
